@@ -216,7 +216,7 @@ class PHPTracker_Torrent
                 'name'          => $this->__get( 'name' ),
                 'length'        => $this->__get( 'length' ),
             ),
-            'announce'          => reset( reset( $announce_list ) ),
+            'announce'          => reset( $announce_list ),
             'announce-list'     => $announce_list,
         );
 
