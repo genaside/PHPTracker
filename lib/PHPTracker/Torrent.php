@@ -60,6 +60,13 @@ class PHPTracker_Torrent
      * @var string
      */
     protected $info_hash;
+    
+    /**
+     * "files" list of files used in 'Multiple File Mode' for this torrent.
+     *
+     * @var array
+     */
+    protected $files;
 
     /**
      * Initializing object witht he piece size and file object, optionally setting attributes from the database.
@@ -87,8 +94,9 @@ class PHPTracker_Torrent
         $this->length       = $length;
         $this->name         = $name;
         $this->file_path    = $file_path;
-        $this->pieces       = $pieces;
+        $this->pieces       = $pieces;        
         $this->info_hash    = $info_hash;
+        $this->files        = null;
     }
 
     /**
@@ -142,6 +150,20 @@ class PHPTracker_Torrent
                 break;
             case 'size_piece':
                 return $this->size_piece;
+                break;     
+            case 'files':
+                if ( !isset( $this->files ) )
+                {		    
+		    if ( $this->file->isMultipleFile() )
+		    {
+		        $this->files = $this->file->getFilesForTorrent();
+		    }
+		    else
+		    {
+		        return null;
+		    }		    
+                }
+                return $this->files;
                 break;
             default:
                 throw new PHPTracker_Error( "Can't access attribute $attribute of " . __CLASS__ );
@@ -164,8 +186,9 @@ class PHPTracker_Torrent
             case 'length':
             case 'name':
             case 'size_piece':
+            case 'files':
             case 'info_hash':
-            case 'file_path':
+            case 'file_path':            
                 return true;
                 break;
         }
@@ -177,16 +200,28 @@ class PHPTracker_Torrent
      * Calculates info hash (uniue identifier) of the torrent.
      *
      * @return string
-     */
+     */    
     protected function calculateInfoHash()
-    {
-        // We need to use __get magic method in order to lazy-load attributes.
-        return sha1( PHPTracker_Bencode_Builder::build( array(
-            'piece length'  => $this->size_piece,
-            'pieces'        => $this->__get( 'pieces' ),
-            'name'          => $this->__get( 'name' ),
-            'length'        => $this->__get( 'length' ),
-        ) ), true );
+    {	        
+	if( $this->file->isSingleFile() ){
+	    // Single file mode
+	    // We need to use __get magic method in order to lazy-load attributes.	    
+	    return sha1( PHPTracker_Bencode_Builder::build( array(
+		'piece length'  => $this->size_piece,
+		'pieces'        => $this->__get( 'pieces' ),
+		'name'          => $this->__get( 'name' ),
+		'length'        => $this->__get( 'length' ),
+	    ) ), true );
+	}else{
+	    // Multiple file mode	    
+	    return sha1( PHPTracker_Bencode_Builder::build( array(
+		'piece length'  => $this->size_piece,
+		'pieces'        => $this->__get( 'pieces' ),
+		'name'          => $this->__get( 'name' ),
+		'files'         => $this->__get( 'files' ), // Array
+	    ) ), true );
+	}	        
+        
     }
 
     /**
@@ -207,10 +242,12 @@ class PHPTracker_Torrent
         {
             if ( is_array( $announce_item ) ) continue;
             $announce_item = array( $announce_item );
-        }
+        }        
 
         $torrent_data = array(
-            'info' => array(
+            'created by'    => "PHPTracker v3.0", // Self promote the program
+            'creation date' => time(),
+            'info' => array(                
                 'piece length'  => $this->size_piece,
                 'pieces'        => $this->__get( 'pieces' ),
                 'name'          => $this->__get( 'name' ),
@@ -219,7 +256,13 @@ class PHPTracker_Torrent
             'announce'          => reset( $announce_list ),
             'announce-list'     => $announce_list,
         );
-
+                
+        if( $this->__get( 'files' ) ){        
+            // alter array for multiple file mode
+            unset( $torrent_data[ 'info' ][ 'length' ] );
+            $torrent_data[ 'info' ][ 'files' ] = $this->files;
+        }
+        
         return PHPTracker_Bencode_Builder::build( $torrent_data );
     }
 

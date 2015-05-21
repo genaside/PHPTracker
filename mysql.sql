@@ -8,6 +8,29 @@
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 
+# Dumping structure for table phptracker_torrents
+CREATE TABLE IF NOT EXISTS `phptracker_torrents` (
+  `info_hash` binary(20) NOT NULL COMMENT 'Info hash.',  
+  `pieces_length` int(11) unsigned NOT NULL COMMENT 'Size of one piece in bytes.',
+  `name` varchar(255) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL COMMENT 'name of the contained file(s).',
+  `pieces` mediumblob NOT NULL COMMENT 'Concatenated hashes of all pieces.',  
+  `path` varchar(1024) NOT NULL COMMENT 'Full path of the physical file.',
+  `status` enum('active','inactive') NOT NULL DEFAULT 'active' COMMENT 'Activity status of the torrent.',  
+  PRIMARY KEY (`info_hash`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMMENT='Table to store basic torrent file information upon creation.';
+
+# Dumping structure for table phptracker_torrents_multiplefile
+CREATE TABLE IF NOT EXISTS `phptracker_torrents_multiplefile` ( 
+  `file_hash` binary(20) NOT NULL COMMENT 'Unique hash key.',
+  `info_hash` binary(20) NOT NULL COMMENT 'Info hash of the torrent (parent).',  
+  `length` int(11) unsigned NOT NULL COMMENT 'Size of the file in bytes.',  
+  `path` varchar(1024) NOT NULL COMMENT 'Full path relative to this torrent name attribut.',  
+  PRIMARY KEY (`file_hash`,`info_hash`),
+  FOREIGN KEY (`info_hash`) REFERENCES phptracker_torrents( `info_hash` ) 
+    ON UPDATE CASCADE
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMMENT='Table to store basic torrent file information upon creation.';
+
 # Dumping structure for table phptracker_peers
 CREATE TABLE IF NOT EXISTS `phptracker_peers` (
   `peer_id` binary(20) NOT NULL COMMENT 'Peer unique ID.',
@@ -19,22 +42,13 @@ CREATE TABLE IF NOT EXISTS `phptracker_peers` (
   `bytes_left` int(10) unsigned DEFAULT NULL COMMENT 'Bytes left to download.',
   `status` enum('complete','incomplete') NOT NULL DEFAULT 'incomplete' COMMENT 'Status of the peer (seeder/leecher).',
   `expires` timestamp NULL DEFAULT NULL COMMENT 'Timestamp when peer is considered as expired.',
-  PRIMARY KEY (`peer_id`,`info_hash`),
+  UNIQUE (`peer_id`,`info_hash`),
+  FOREIGN KEY (`info_hash`) REFERENCES phptracker_torrents( `info_hash` ) 
+    ON UPDATE CASCADE
+    ON DELETE CASCADE,
   KEY `Index 2` (`info_hash`),
   KEY `Index 3` (`bytes_left`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMMENT='Current peers for torrents.';
-
-# Dumping structure for table phptracker_torrents
-CREATE TABLE IF NOT EXISTS `phptracker_torrents` (
-  `info_hash` binary(20) NOT NULL COMMENT 'Info hash.',
-  `length` int(11) unsigned NOT NULL COMMENT 'Size of the contained file in bytes.',
-  `pieces_length` int(11) unsigned NOT NULL COMMENT 'Size of one piece in bytes.',
-  `name` varchar(255) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL COMMENT 'Basename of the contained file.',
-  `pieces` mediumblob NOT NULL COMMENT 'Concatenated hashes of all pieces.',
-  `path` varchar(1024) NOT NULL COMMENT 'Full path of the physical file.',
-  `status` enum('active','inactive') NOT NULL DEFAULT 'active' COMMENT 'Activity status of the torrent.',
-  PRIMARY KEY (`info_hash`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMMENT='Table to store basic torrent file information upon creation.';
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;

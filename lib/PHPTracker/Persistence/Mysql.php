@@ -39,22 +39,20 @@ class PHPTracker_Persistence_Mysql implements PHPTracker_Persistence_Interface, 
      * multiple times with the same info hash.
      *
      * @param PHPTracker_Torrent $torrent
-     */
+     */    
     public function saveTorrent( PHPTracker_Torrent $torrent )
     {
         $sql = <<<SQL
 INSERT INTO
     `phptracker_torrents`
 SET
-    `info_hash`     = :info_hash,
-    `length`        = :length,
+    `info_hash`     = :info_hash,    
     `pieces_length` = :pieces_length,
     `pieces`        = :pieces,
     `name`          = :name,
     `path`          = :path
 ON DUPLICATE KEY UPDATE
-    `info_hash`     = VALUES( `info_hash` ),
-    `length`        = VALUES( `length` ),
+    `info_hash`     = VALUES( `info_hash` ),    
     `pieces_length` = VALUES( `pieces_length` ),
     `pieces`        = VALUES( `pieces` ),
     `name`          = VALUES( `name` ),
@@ -62,13 +60,49 @@ ON DUPLICATE KEY UPDATE
 SQL;
 
         $this->query( $sql, array(
-            ':info_hash'         => $torrent->info_hash,
-            ':length'            => $torrent->length,
+            ':info_hash'         => $torrent->info_hash,            
             ':pieces_length'     => $torrent->size_piece,
             ':pieces'            => $torrent->pieces,
             ':name'              => $torrent->name,
             ':path'              => $torrent->file_path,
         ) );
+        
+        // Single and multiple files go in here
+        $sql = <<<SQL
+INSERT INTO
+    `phptracker_torrents_multiplefile`
+SET
+    `file_hash`     = :file_hash,    
+    `info_hash`     = :info_hash,    
+    `length`        = :length,    
+    `path`          = :path
+ON DUPLICATE KEY UPDATE
+    `file_hash`     = VALUES( `file_hash` ),  
+    `info_hash`     = VALUES( `info_hash` ),    
+    `length`        = VALUES( `length` ),    
+    `path`          = VALUES( `path` )
+SQL;
+
+	if( !$torrent->files )
+	{
+	    $this->query( $sql, array(
+		':file_hash'         => sha1( $torrent->name ),            
+		':info_hash'         => $torrent->info_hash,
+		':length'            => $torrent->length,
+		':path'              => $torrent->name,            
+	    ) );
+	}
+	else
+	{
+	    foreach( $torrent->files AS $file ){  
+		$this->query( $sql, array(
+		    ':file_hash'         => sha1( implode( '/', $file[ 'path' ] ) ),            
+		    ':info_hash'         => $torrent->info_hash,
+		    ':length'            => $file[ 'length' ],
+		    ':path'              => implode( "/", $file[ 'path' ] ),            
+		) );
+	    }	
+	}
     }
 
     /**
@@ -84,13 +118,15 @@ SQL;
         $sql = <<<SQL
 SELECT
     `info_hash`,
-    `length`,
+    SUM(length) AS length,
     `pieces_length`,
     `pieces`,
     `name`,
-    `path`
+    phptracker_torrents.path AS path
 FROM
     `phptracker_torrents`
+INNER JOIN 
+    phptracker_torrents_multiplefile USING( info_hash )
 WHERE
     `info_hash` = :info_hash
     AND
@@ -179,11 +215,15 @@ SQL;
         $sql = <<<SQL
 SELECT
     `info_hash`,
-    `length`
+    SUM(length) AS length
 FROM
     `phptracker_torrents`
+INNER JOIN 
+    phptracker_torrents_multiplefile USING( info_hash )    
 WHERE
     `status` = 'active'
+GROUP BY 
+    info_hash    
 SQL;
 
         return $this->query( $sql, array() );

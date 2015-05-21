@@ -17,7 +17,8 @@ abstract class PHPTracker_Bencode_Value_Container extends PHPTracker_Bencode_Val
      */
     public function __construct( $value = null )
     {
- 	if( !is_array( $value ) ){	    
+ 	
+ 	if( !is_array( $value ) && $value != null ){	    
 	    exit( "Fatal Error: Argument 1 must be an array" );
 	}
 

@@ -31,11 +31,21 @@ class PHPTracker_Core
         $this->config       = $config;
         $this->persistence  = $this->config->get( 'persistence' );
     }
+    
+    /**
+     * Get current version of this program
+     *
+     * @return string
+     */
+    public function version()
+    {
+        return "PHPTracker v3.0";
+    }
 
     /**
      * Creates a string representing a .torrent file.
      *
-     * @param string $file_path Full path of the file to use to generate torrent file (will be opeend and hashed).
+     * @param string $file_path Full path of the file or directory to use to generate torrent file (will be opeend and hashed).
      * @param integer $size_piece Size of one piece in bytes. Normally a power of 2, defaults to 256KB.
      * @throws PHPTracker_Error When the announce-list is empty.
      * @return string
@@ -58,7 +68,7 @@ class PHPTracker_Core
 
         return $torrent->createTorrentFile( $announce );
     }
-
+    
     /**
      * Announce a peer to be tracked and return message to the client.
      *
